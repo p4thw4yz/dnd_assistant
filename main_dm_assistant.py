@@ -407,4 +407,4 @@ def handle_transcripts():
 
 if __name__ == '__main__':
     handle_transcripts()  # Call the new function
-    app.run(host="0.0.0.0")
+    app.run(host='0.0.0.0', port=8048)
