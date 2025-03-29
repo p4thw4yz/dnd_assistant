@@ -396,7 +396,12 @@ def autosave_notepad(n_intervals, note_text):
     return note_text
 
 def handle_transcripts():
-    if os.path.exists("dm_assistant_transcripts.txt"):
+    # Create the file if it doesn't exist
+    if not os.path.exists("dm_assistant_transcripts.txt"):
+        with open("dm_assistant_transcripts.txt", "w", encoding="utf-8") as f:
+            f.write("")
+    else:
+        # Existing logic for handling transcripts
         with open("dm_assistant_transcripts.txt", "r", encoding="utf-8") as transcripts_file:
             transcripts_content = transcripts_file.read()
         with open("dm_assistant_transcripts.old", "a", encoding="utf-8") as old_transcripts_file:
