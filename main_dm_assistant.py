@@ -4,12 +4,8 @@ import dash
 from dash import dcc, html, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 from ollama_interface import OllamaInterface
+from openrouter_interface import OpenRouterInterface
 
-if os.path.exists("notes.txt"):
-    with open("notes.txt", "r", encoding="utf-8") as f:
-        initial_notes = f.read()
-else:
-    initial_notes = ""
 
 SYSTEM_PROMPT = ("You are a Dungeon Master Assistant AI, dedicated solely to discussing and assisting with "
                  "Dungeons & Dragons (D&D). You will provide assistance and rule help, campaign ideas, character "
@@ -21,7 +17,22 @@ SYSTEM_PROMPT = ("You are a Dungeon Master Assistant AI, dedicated solely to dis
                  "points, tables or other formatted elements. The context provided is important to the current workings "
                  "of the game followed by a /n and the previous user and assistant chat history.")
 
-ollama_client = OllamaInterface("gemma3:1b", SYSTEM_PROMPT)
+# Interface Configuration
+USE_OLLAMA = False  # Set to False to use OpenRouter
+OLLAMA_MODEL = "gemma3:1b"  # Model to use with Ollama
+OPENROUTER_API_KEY = "API_KEY"
+
+# Initialize the appropriate interface
+if USE_OLLAMA:
+    ollama_client = OllamaInterface(OLLAMA_MODEL, SYSTEM_PROMPT)
+else:
+    ollama_client = OpenRouterInterface(OPENROUTER_API_KEY, SYSTEM_PROMPT)
+
+if os.path.exists("notes.txt"):
+    with open("notes.txt", "r", encoding="utf-8") as f:
+        initial_notes = f.read()
+else:
+    initial_notes = ""
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY, 
                         'dark.css'])
