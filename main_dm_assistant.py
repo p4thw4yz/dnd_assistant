@@ -1,12 +1,19 @@
 import os
 import random
 import dash
+import json
+import re
 from dash import dcc, html, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 from ollama_interface import OllamaInterface
 from openrouter_interface import OpenRouterInterface
 
 
+# Interface Configuration
+USE_OLLAMA = False
+OLLAMA_MODEL = "gemma3:1b"  # Model to use with Ollama
+OPENROUTER_API_KEY = "API_KEY"
+DEFAULT_PROMPT = 'dungeon_master'
 SYSTEM_PROMPTS = {
     'dungeon_master': ("You are a Dungeon Master Assistant AI, dedicated solely to discussing and assisting with "
                        "Dungeons & Dragons (D&D). You will provide assistance and rule help, campaign ideas, character "
@@ -48,17 +55,12 @@ SYSTEM_PROMPTS = {
                           "When you receive a prompt, generate the encounter strictly following these rules and return a structured JSON output.")
 }
 
-# Interface Configuration
-USE_OLLAMA = False
-OLLAMA_MODEL = "gemma3:1b"  # Model to use with Ollama
-OPENROUTER_API_KEY = "API_KEY"
-DEFAULT_PROMPT = 'dungeon_master'
 
 # Initialize the appropriate interface
 if USE_OLLAMA:
-    ollama_client = OllamaInterface(OLLAMA_MODEL, SYSTEM_PROMPTS[DEFAULT_PROMPT])
+    chat_client = OllamaInterface(OLLAMA_MODEL, SYSTEM_PROMPTS[DEFAULT_PROMPT])
 else:
-    ollama_client = OpenRouterInterface(OPENROUTER_API_KEY, SYSTEM_PROMPTS[DEFAULT_PROMPT])
+    chat_client = OpenRouterInterface(OPENROUTER_API_KEY, SYSTEM_PROMPTS[DEFAULT_PROMPT])
 
 if os.path.exists("notes.txt"):
     with open("notes.txt", "r", encoding="utf-8") as f:
@@ -408,11 +410,11 @@ def update_or_clear_chat(n_send, n_submit, n_clear_transcript, user_msg, chat_hi
         context = notes_content + "\n" + transcripts_content
         
         if USE_OLLAMA:
-            ollama_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
+            chat_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
         else:
-            ollama_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
+            chat_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
             
-        response = ollama_client.send_input(user_msg, context=context)
+        response = chat_client.send_input(user_msg, context=context)
         chat_history[-1] = {"sender": "DM Assist", "message": response}
         with open("dm_assistant_transcripts.txt", "a", encoding="utf-8") as f:
             f.write("User: " + user_msg + "\n")
