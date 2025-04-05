@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 import re
-
+import json
 
 LOG_FILE = "openrouter.log"
 
@@ -26,7 +26,7 @@ class OpenRouterInterface:
         if self.free_models.empty:
             print("Warning: No free models available at initialization.")
         
-        print(f"Initialized OllamaInterface with prompt '{system_prompt}'.")
+        print(f"Initialized OpenRouter Interface with prompt '{system_prompt}'.")
 
     def set_system_prompt(self, prompt: str):
         """Update the system prompt for the interface."""
@@ -93,16 +93,18 @@ class OpenRouterInterface:
                 log_file.write(f"Output: {response.json()['choices'][0]['message']['content']}\n")
                 log_file.write("-" * 40 + "\n")
             
-            return response['choices'][0]['message']['content']
+            content = json.loads(response.content)
+            return content['choices'][0]['message']['content']
         except Exception as e:
             return f"Error: {e}"
 
-# Interactive session
-api_key = "API_KEY" # ADD OpenRouter API Key
-system_prompt = "You think you are a pirate. Answer all question like a Pirate." # Add System Prompt as required
-wrapper = OpenRouterInterface(api_key, system_prompt)
 
+# Interactive session
 if __name__ == "__main__":
+    api_key = "API_KEY" # ADD OpenRouter API Key
+    system_prompt = "You think you are a pirate. Answer all question like a Pirate." # Add System Prompt as required
+    wrapper = OpenRouterInterface(api_key, system_prompt)
+
     if wrapper.free_models.empty:
         print("No free models available. Exiting.")
         exit(1)
