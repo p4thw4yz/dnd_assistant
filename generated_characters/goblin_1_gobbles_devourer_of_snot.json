@@ -1,0 +1,28 @@
+{
+  "creature_type": "goblin",
+  "creature_name": "gobbles, devourer of snot",
+  "quantity": 3,
+  "challenge_rating": 3,
+  "target_player_level": 1,
+  "stats": {
+    "hit_points": 15,
+    "armor_class": 12,
+    "attack_bonus": 4,
+    "damage": "1d6 + 2 piercing"
+  },
+  "loot": [
+    {
+      "name": "Rusty Dagger",
+      "value": 5
+    },
+    {
+      "name": "Small Stone",
+      "value": 1
+    },
+    {
+      "name": "Goblin Ear",
+      "value": 2
+    }
+  ],
+  "notes": "These goblins are particularly aggressive, driven by a strange compulsion to hoard shiny objects. They are skilled at ambushing from the shadows and are easily distracted by food. The presence of the ancient elven ruins adds a layer of danger, as the magic emanating from them seems to pull these goblins towards the dark caves."
+}

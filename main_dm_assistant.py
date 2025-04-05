@@ -25,7 +25,7 @@ SYSTEM_PROMPTS = {
                        "points, tables or other formatted elements. The context provided is important to the current workings "
                        "of the game followed by a /n and the previous user and assistant chat history."),
     
-    'monster_generator': ("You are a Dungeon Master encounter generator. Given a user prompt such as "
+    'monster_generator_json': ("You are a Dungeon Master encounter generator. Given a user prompt such as "
                           "'a pack of goblins 3 strong to battle 2 players at level 1', follow these steps:\n\n"
                           "1. **Parse the Input:**  \n"
                           "- Identify the creature type (e.g., 'goblin').  \n"
@@ -408,13 +408,17 @@ def update_or_clear_chat(n_send, n_submit, n_clear_transcript, user_msg, chat_hi
             transcripts_content = transcripts_file.read()
         
         context = notes_content + "\n" + transcripts_content
-        
+
         if USE_OLLAMA:
             chat_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
         else:
             chat_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
             
         response = chat_client.send_input(user_msg, context=context)
+
+        if 'json' in response:
+            save_cleaned_json(response)
+
         chat_history[-1] = {"sender": "DM Assist", "message": response}
         with open("dm_assistant_transcripts.txt", "a", encoding="utf-8") as f:
             f.write("User: " + user_msg + "\n")
@@ -478,6 +482,19 @@ def handle_transcripts():
     
         with open("dm_assistant_transcripts.txt", "w", encoding="utf-8") as transcripts_file:
             transcripts_file.write("")
+
+def save_cleaned_json(data):
+    cleaned = data.strip('```json').strip('```')
+    data = json.loads(cleaned)
+    race = data["creature_type"].lower().replace(" ", "_")
+    level = data["target_player_level"]
+    name = data["creature_name"].lower().replace(" ", "_").replace(".", "").replace(",", "")
+    filename = f"{race}_{level}_{name}.json"
+    os.makedirs("generated_characters", exist_ok=True)
+    path = os.path.join("generated_characters", filename)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
 
 if __name__ == '__main__':
     handle_transcripts()
