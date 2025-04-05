@@ -25,7 +25,14 @@ class OpenRouterInterface:
         self.free_models = self.get_free_models()
         if self.free_models.empty:
             print("Warning: No free models available at initialization.")
+        
+        print(f"Initialized OllamaInterface with prompt '{system_prompt}'.")
 
+    def set_system_prompt(self, prompt: str):
+        """Update the system prompt for the interface."""
+        self.system_prompt = prompt
+        print(f"Updated system prompt to: '{prompt}'")
+        
     def get_free_models(self):
         """Fetch free models and return a DataFrame with name, id, size, and free status."""
         try:
@@ -86,7 +93,7 @@ class OpenRouterInterface:
                 log_file.write(f"Output: {response.json()['choices'][0]['message']['content']}\n")
                 log_file.write("-" * 40 + "\n")
             
-            return response.json()['choices'][0]['message']['content']
+            return response['choices'][0]['message']['content']
         except Exception as e:
             return f"Error: {e}"
 

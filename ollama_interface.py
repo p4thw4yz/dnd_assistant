@@ -7,7 +7,13 @@ class OllamaInterface:
         self.client = ollama.Client()
         self.ai_prompt = ai_prompt
         print(f"Initialized OllamaInterface with model '{model_name}'.")
+        print(f"Initialized OllamaInterface with prompt '{ai_prompt}'.")
 
+    def set_system_prompt(self, prompt: str):
+        """Update the system prompt for the interface."""
+        self.ai_prompt = prompt
+        print(f"Updated system prompt to: '{prompt}'")
+        
     def send_input(self, prompt: str, context: str = "") -> str:
         """Send a prompt and optional context to the Ollama model and return the response."""
         try:

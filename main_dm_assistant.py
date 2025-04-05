@@ -7,33 +7,65 @@ from ollama_interface import OllamaInterface
 from openrouter_interface import OpenRouterInterface
 
 
-SYSTEM_PROMPT = ("You are a Dungeon Master Assistant AI, dedicated solely to discussing and assisting with "
-                 "Dungeons & Dragons (D&D). You will provide assistance and rule help, campaign ideas, character "
-                 "development, world-building suggestions, encounter balancing, NPC creation, and rules clarifications "
-                 "based on D&D mechanics. Your responses must always remain within the context of D&D and never stray "
-                 "into unrelated topics. Focus on creativity, improvisation, and adherence to D&D lore and mechanics "
-                 "when relevant. Dont mention D&D and the user already knows you are a D&D assistant. Responses must be "
-                 "as straight forward as possible with all being under 200 words. Only respond with sentances, no dot "
-                 "points, tables or other formatted elements. The context provided is important to the current workings "
-                 "of the game followed by a /n and the previous user and assistant chat history.")
+SYSTEM_PROMPTS = {
+    'dungeon_master': ("You are a Dungeon Master Assistant AI, dedicated solely to discussing and assisting with "
+                       "Dungeons & Dragons (D&D). You will provide assistance and rule help, campaign ideas, character "
+                       "development, world-building suggestions, encounter balancing, NPC creation, and rules clarifications "
+                       "based on D&D mechanics. Your responses must always remain within the context of D&D and never stray "
+                       "into unrelated topics. Focus on creativity, improvisation, and adherence to D&D lore and mechanics "
+                       "when relevant. Don't mention D&D and the user already knows you are a D&D assistant. Responses must be "
+                       "as straightforward as possible with all being under 200 words. Only respond with sentences, no dot "
+                       "points, tables or other formatted elements. The context provided is important to the current workings "
+                       "of the game followed by a /n and the previous user and assistant chat history."),
+    
+    'monster_generator': ("You are a Dungeon Master encounter generator. Given a user prompt such as "
+                          "'a pack of goblins 3 strong to battle 2 players at level 1', follow these steps:\n\n"
+                          "1. **Parse the Input:**  \n"
+                          "- Identify the creature type (e.g., 'goblin').  \n"
+                          "- Determine the number of creatures (e.g., 3).  \n"
+                          "- Identify the target (e.g., players) and their level (e.g., level 1).  \n"
+                          "- Recognize any modifiers (e.g., 'strong') that may affect stats.\n\n"
+                          "2. **Generate Encounter Data as JSON:**  \n"
+                          "- Return a valid JSON object with the following fields:\n"
+                          "  - 'creature_type': The type of creature (e.g., 'goblin').\n"
+                          "  - 'creature_name': The name of creature (e.g., 'gobbles, devourer of snot').\n"
+                          "  - 'quantity': Number of creatures.\n"
+                          "  - 'challenge_rating': Suitable challenge rating based on D&D rules.\n"
+                          "  - 'target_player_level': The expected level of players.\n"
+                          "  - 'stats': Object containing:\n"
+                          "    - 'hit_points'\n"
+                          "    - 'armor_class'\n"
+                          "    - 'attack_bonus'\n"
+                          "    - 'damage'\n"
+                          "    - Any other relevant D&D stats.\n"
+                          "  - 'loot': An array of possible loot items, where each item has:\n"
+                          "    - 'name': Item name.\n"
+                          "    - 'value' (if applicable) or 'rarity'.\n\n"
+                          "3. **Output Requirements:**  \n"
+                          "- Return **only** a JSON object (no extra text, no markdown).  \n"
+                          "- Ensure all values align with D&D mechanics.  \n"
+                          "- If assumptions are made due to ambiguity, include a 'notes' field explaining them.\n\n"
+                          "When you receive a prompt, generate the encounter strictly following these rules and return a structured JSON output.")
+}
 
 # Interface Configuration
-USE_OLLAMA = False  # Set to False to use OpenRouter
+USE_OLLAMA = False
 OLLAMA_MODEL = "gemma3:1b"  # Model to use with Ollama
 OPENROUTER_API_KEY = "API_KEY"
+DEFAULT_PROMPT = 'dungeon_master'
 
 # Initialize the appropriate interface
 if USE_OLLAMA:
-    ollama_client = OllamaInterface(OLLAMA_MODEL, SYSTEM_PROMPT)
+    ollama_client = OllamaInterface(OLLAMA_MODEL, SYSTEM_PROMPTS[DEFAULT_PROMPT])
 else:
-    ollama_client = OpenRouterInterface(OPENROUTER_API_KEY, SYSTEM_PROMPT)
+    ollama_client = OpenRouterInterface(OPENROUTER_API_KEY, SYSTEM_PROMPTS[DEFAULT_PROMPT])
 
 if os.path.exists("notes.txt"):
     with open("notes.txt", "r", encoding="utf-8") as f:
         initial_notes = f.read()
 else:
     initial_notes = ""
-
+    
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY, 
                         'dark.css'])
 
@@ -50,6 +82,7 @@ ROUNDED_STYLE = {'borderRadius': '8px'}
 app.layout = html.Div([
     dcc.Store(id="effects-store", data=[]),
     dcc.Store(id="chat-store", data=[]),
+    dcc.Store(id="prompt-store", data=DEFAULT_PROMPT),
     dcc.Interval(id="notepad-interval", interval=30000, n_intervals=0),
     html.Div(
         style={'display': 'flex', 'height': '100vh', 'gap': '10px'},
@@ -209,6 +242,15 @@ app.layout = html.Div([
                 },
                 children=[
                     html.H4("D&D Assistant", style={'color': '#FFFFFF', 'textAlign': 'center'}),
+                    html.Div([
+                        dcc.Dropdown(
+                            id='prompt-selector',
+                            options=[{'label': key, 'value': key} for key in SYSTEM_PROMPTS.keys()],
+                            value=DEFAULT_PROMPT,
+                            clearable=False,
+                            style={'width': '100%', 'marginBottom': '10px', 'color': 'black', **ROUNDED_STYLE}
+                        ),
+                    ], style={'display': 'flex', 'marginBottom': '10px'}),
                     html.Div(
                         id="chat-display",
                         style={
@@ -262,6 +304,15 @@ app.layout = html.Div([
         ]
     )
 ], style=GLOBAL_STYLE)
+
+@app.callback(
+    Output("prompt-store", "data"),
+    Input("prompt-selector", "value")
+)
+def update_prompt_store(selected_prompt):
+    if selected_prompt in SYSTEM_PROMPTS:
+        return selected_prompt
+    return DEFAULT_PROMPT
 
 @app.callback(
     Output("dice-result", "children"),
@@ -329,10 +380,12 @@ def update_effects_display(effects):
     [Input("send-button", "n_clicks"),
      Input("chat-input", "n_submit"),
      Input("clear-transcript-button", "n_clicks")],
-    [State("chat-input", "value"), State("chat-store", "data")],
+    [State("chat-input", "value"), 
+     State("chat-store", "data"),
+     State("prompt-store", "data")],
     prevent_initial_call=True
 )
-def update_or_clear_chat(n_send, n_submit, n_clear_transcript, user_msg, chat_history):
+def update_or_clear_chat(n_send, n_submit, n_clear_transcript, user_msg, chat_history, selected_prompt):
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -354,6 +407,11 @@ def update_or_clear_chat(n_send, n_submit, n_clear_transcript, user_msg, chat_hi
         
         context = notes_content + "\n" + transcripts_content
         
+        if USE_OLLAMA:
+            ollama_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
+        else:
+            ollama_client.set_system_prompt(SYSTEM_PROMPTS[selected_prompt])
+            
         response = ollama_client.send_input(user_msg, context=context)
         chat_history[-1] = {"sender": "DM Assist", "message": response}
         with open("dm_assistant_transcripts.txt", "a", encoding="utf-8") as f:
@@ -407,12 +465,10 @@ def autosave_notepad(n_intervals, note_text):
     return note_text
 
 def handle_transcripts():
-    # Create the file if it doesn't exist
     if not os.path.exists("dm_assistant_transcripts.txt"):
         with open("dm_assistant_transcripts.txt", "w", encoding="utf-8") as f:
             f.write("")
     else:
-        # Existing logic for handling transcripts
         with open("dm_assistant_transcripts.txt", "r", encoding="utf-8") as transcripts_file:
             transcripts_content = transcripts_file.read()
         with open("dm_assistant_transcripts.old", "a", encoding="utf-8") as old_transcripts_file:
@@ -422,5 +478,5 @@ def handle_transcripts():
             transcripts_file.write("")
 
 if __name__ == '__main__':
-    handle_transcripts()  # Call the new function
+    handle_transcripts()
     app.run(host='0.0.0.0', port=8048)
