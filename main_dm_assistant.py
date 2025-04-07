@@ -14,6 +14,9 @@ USE_OLLAMA = False
 OLLAMA_MODEL = "gemma3:1b"  # Model to use with Ollama
 OPENROUTER_API_KEY = "API_KEY"
 DEFAULT_PROMPT = 'dungeon_master'
+# Default panel widths
+DEFAULT_LEFT_WIDTH = 65  # percentage
+DEFAULT_RIGHT_WIDTH = 35  # percentage
 SYSTEM_PROMPTS = {
     'dungeon_master': ("You are a Dungeon Master Assistant AI, dedicated solely to discussing and assisting with "
                        "Dungeons & Dragons (D&D). You will provide assistance and rule help, campaign ideas, character "
@@ -81,20 +84,153 @@ GLOBAL_STYLE = {
 
 ROUNDED_STYLE = {'borderRadius': '8px'}
 
+# Add JavaScript for resizing functionality
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            #resizer {
+                width: 10px;
+                height: 100%;
+                background-color: #444;
+                cursor: col-resize;
+                transition: background-color 0.3s;
+            }
+            #resizer:hover, #resizer.active {
+                background-color: #666;
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    let isResizing = false;
+                    let container, left, right, resizer;
+                    
+                    // Get references to elements after they've been rendered
+                    function updateElements() {
+                        container = document.querySelector('.main-container');
+                        if (!container) return;
+                        
+                        left = document.querySelector('.left-panel');
+                        right = document.querySelector('.right-panel');
+                        resizer = document.getElementById('resizer');
+                        
+                        if (resizer && left && right) {
+                            // Add event listeners for the resizer
+                            resizer.addEventListener('mousedown', initResize);
+                            
+                            // Initial width settings based on the store values
+                            const leftWidthStr = sessionStorage.getItem('leftWidth');
+                            const rightWidthStr = sessionStorage.getItem('rightWidth');
+                            
+                            if (leftWidthStr && rightWidthStr) {
+                                left.style.width = leftWidthStr + '%';
+                                right.style.width = rightWidthStr + '%';
+                            }
+                        }
+                    }
+                    
+                    // Initialize resizing
+                    function initResize(e) {
+                        isResizing = true;
+                        resizer.classList.add('active');
+                        
+                        // Add event listeners for dragging
+                        document.addEventListener('mousemove', resize);
+                        document.addEventListener('mouseup', stopResize);
+                        
+                        // Prevent selection during drag
+                        e.preventDefault();
+                    }
+                    
+                    // Handle the resizing
+                    function resize(e) {
+                        if (!isResizing) return;
+                        
+                        // Calculate new width percentages
+                        const containerRect = container.getBoundingClientRect();
+                        const containerWidth = containerRect.width;
+                        const mousePos = e.clientX - containerRect.left;
+                        
+                        // Calculate percentages (minimum 20%)
+                        let leftWidth = (mousePos / containerWidth) * 100;
+                        let rightWidth = 100 - leftWidth;
+                        
+                        // Enforce minimum widths
+                        if (leftWidth < 20) {
+                            leftWidth = 20;
+                            rightWidth = 80;
+                        } else if (rightWidth < 20) {
+                            rightWidth = 20;
+                            leftWidth = 80;
+                        }
+                        
+                        // Update element styles
+                        left.style.width = leftWidth + '%';
+                        right.style.width = rightWidth + '%';
+                        
+                        // Store in session storage
+                        sessionStorage.setItem('leftWidth', leftWidth);
+                        sessionStorage.setItem('rightWidth', rightWidth);
+                    }
+                    
+                    // Stop resizing
+                    function stopResize() {
+                        isResizing = false;
+                        resizer.classList.remove('active');
+                        
+                        // Remove event listeners
+                        document.removeEventListener('mousemove', resize);
+                        document.removeEventListener('mouseup', stopResize);
+                    }
+                    
+                    // Try to get elements on initial load
+                    updateElements();
+                    
+                    // If elements are not available immediately, keep trying
+                    if (!resizer || !left || !right) {
+                        const checkInterval = setInterval(() => {
+                            updateElements();
+                            if (resizer && left && right) clearInterval(checkInterval);
+                        }, 100);
+                        
+                        // Clear the interval after 5 seconds to avoid infinite checking
+                        setTimeout(() => clearInterval(checkInterval), 5000);
+                    }
+                });
+            </script>
+        </footer>
+    </body>
+</html>
+'''
+
 app.layout = html.Div([
     dcc.Store(id="effects-store", data=[]),
     dcc.Store(id="chat-store", data=[]),
     dcc.Store(id="prompt-store", data=DEFAULT_PROMPT),
     dcc.Interval(id="notepad-interval", interval=30000, n_intervals=0),
     html.Div(
-        style={'display': 'flex', 'height': '100vh', 'gap': '10px'},
+        className="main-container",
+        style={'display': 'flex', 'height': '100vh', 'gap': '0px'},
         children=[
+            # Left panel
             html.Div(
+                className="left-panel",
                 style={
-                    'width': '65%', 
+                    'width': f'{DEFAULT_LEFT_WIDTH}%', 
                     'padding': '20px', 
                     'backgroundColor': '#2c2c2c',
-                    'borderRight': '1px solid #444',
                     **ROUNDED_STYLE,
                     'display': 'flex',
                     'flexDirection': 'column',
@@ -232,12 +368,17 @@ app.layout = html.Div([
                     ], style={'flex': '1', 'marginBottom': '40px'})
                 ]
             ),
+            
+            # Resizer element
+            html.Div(id="resizer"),
+            
+            # Right panel
             html.Div(
+                className="right-panel",
                 style={
-                    'width': '35%', 
+                    'width': f'{DEFAULT_RIGHT_WIDTH}%', 
                     'padding': '20px',
                     'backgroundColor': '#2c2c2c',
-                    'borderLeft': '1px solid #444',
                     'display': 'flex', 
                     'flexDirection': 'column',
                     **ROUNDED_STYLE
@@ -484,7 +625,7 @@ def handle_transcripts():
             transcripts_file.write("")
 
 def save_cleaned_json(data):
-    cleaned = data.strip('```json').strip('```')
+    cleaned = data.strip('`').strip('`').strip('json')
     data = json.loads(cleaned)
     race = data["creature_type"].lower().replace(" ", "_")
     level = data["target_player_level"]
